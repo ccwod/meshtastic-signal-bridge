@@ -132,6 +132,7 @@ Commands can be initiated by all mesh users using the format **![command]**, or 
 | `!mode2` | Relay all Signal → Mesh. Mesh → Signal relay **REQUIRES** `!relay [message]` |
 | `!mode3` | Mesh → Signal **ONLY** via `!relay [message]`. Signal → Mesh relay **DISABLED**. |
 | `!status` | Show relay state (`on` or `off`) and mode |
+| `!relay` | Only used for Modes[2,3]. Explicitly relays messages from Mesh to Signal, otherwise they are not automatically relayed in those modes. |
 
 ### Signal Command
 
