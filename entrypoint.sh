@@ -7,32 +7,65 @@ DATA_DIR="$SIGNAL_DIR/data"
 mkdir -p "$SIGNAL_DIR"
 mkdir -p "$DATA_DIR"
 
-export SIGNAL_POLL_INTERVAL="${SIGNAL_POLL_INTERVAL:-2}"
-export LOG_LEVEL="${LOG_LEVEL:-INFO}"
+#-----------------------
+#Step 1 - Check basic .env variables and apply defaults if necessary (except SIGNAL_GROUP_ID and MESH_DEVICE)
+#-----------------------
 
-# ---- TZ ----
-if [ -z "$TZ" ]; then
-  export TZ="America/Chicago"
-  echo "TZ not set → defaulting to America/Chicago"
-  echo "Common US options:"
-  echo "  America/New_York"
-  echo "  America/Chicago"
-  echo "  America/Denver"
-  echo "  America/Los_Angeles"
-elif [ ! -f "/usr/share/zoneinfo/$TZ" ]; then
-  echo "Invalid TZ: $TZ"
-  echo "Common US options:"
-  echo "  America/New_York"
-  echo "  America/Chicago"
-  echo "  America/Denver"
-  echo "  America/Los_Angeles"
-  tail -f /dev/null
+#-----------------------
+#Pre-check — detect if any Step 1 variables are missing/invalid
+#-----------------------
+
+STEP1_ISSUES=false
+
+# TZ missing
+if [ -z "$TZ" ] || [ ! -f "/usr/share/zoneinfo/$TZ" ]; then
+  STEP1_ISSUES=true
 fi
+
+# SIGNAL_POLL_INTERVAL invalid
+if ! [[ "$SIGNAL_POLL_INTERVAL" =~ ^[0-9]+$ ]]; then
+  STEP1_ISSUES=true
+fi
+
+# LOG_LEVEL invalid
+case "${LOG_LEVEL^^}" in
+  DEBUG|INFO|WARNING|ERROR|CRITICAL) ;;
+  *) STEP1_ISSUES=true ;;
+esac
+
+# SIGNAL_SHORT_NAMES invalid
+case "${SIGNAL_SHORT_NAMES,,}" in
+  true|false) ;;
+  *) STEP1_ISSUES=true ;;
+esac
+
+# MESH_CHANNEL_INDEX invalid
+if ! [[ "$MESH_CHANNEL_INDEX" =~ ^[0-9]+$ ]]; then
+  STEP1_ISSUES=true
+fi
+
+# NODE_DB_WARMUP invalid
+if ! [[ "$NODE_DB_WARMUP" =~ ^[0-9]+$ ]]; then
+  STEP1_ISSUES=true
+fi
+
+# Print banner once if anything is wrong
+if [ "$STEP1_ISSUES" = true ]; then
+  echo ""
+  echo "----------------------------------------"
+  echo -e "\033[33m MISSING OR INVALID VARIABLES DETECTED\033[0m"
+  echo " Applying some defaults"
+  echo "----------------------------------------"
+  echo ""
+fi
+#------------
+
+sleep .5
 
 # ---- SIGNAL_POLL_INTERVAL ----
 if ! [[ "$SIGNAL_POLL_INTERVAL" =~ ^[0-9]+$ ]]; then
   export SIGNAL_POLL_INTERVAL=2
-  echo "SIGNAL_POLL_INTERVAL invalid → defaulting to 2"
+  echo "SIGNAL_POLL_INTERVAL is missing or invalid. Defaulting to 2."
 fi
 
 # ---- LOG_LEVEL ----
@@ -42,7 +75,7 @@ case "${LOG_LEVEL^^}" in
     ;;
   *)
     export LOG_LEVEL=INFO
-    echo "LOG_LEVEL invalid → defaulting to INFO"
+    echo "LOG_LEVEL is missing or invalid. Defaulting to INFO."
     ;;
 esac
 
@@ -53,117 +86,170 @@ case "${SIGNAL_SHORT_NAMES,,}" in
     ;;
   *)
     export SIGNAL_SHORT_NAMES=true
-    echo "SIGNAL_SHORT_NAMES invalid → defaulting to true"
+    echo "SIGNAL_SHORT_NAMES is missing or invalid. Defaulting to true."
     ;;
 esac
 
 # ---- MESH_CHANNEL_INDEX ----
 if ! [[ "$MESH_CHANNEL_INDEX" =~ ^[0-9]+$ ]]; then
   export MESH_CHANNEL_INDEX=1
-  echo "MESH_CHANNEL_INDEX invalid → defaulting to 1"
+  echo "MESH_CHANNEL_INDEX is missing or invalid. Defaulting to 1."
 fi
 
 # ---- NODE_DB_WARMUP ----
 if ! [[ "$NODE_DB_WARMUP" =~ ^[0-9]+$ ]]; then
   export NODE_DB_WARMUP=10
-  echo "NODE_DB_WARMUP invalid → defaulting to 10"
+  echo "NODE_DB_WARMUP is missing or invalid. Defaulting to 10."
+fi
+
+# ---- TZ ----
+if [ -z "$TZ" ] || [ ! -f "/usr/share/zoneinfo/$TZ" ]; then
+  export TZ="America/Chicago"
+  echo "TZ is missing or invalid. Defaulting to America/Chicago."
+  echo "Common US options:"
+  echo " America/New_York"
+  echo " America/Chicago"
+  echo " America/Denver"
+  echo " America/Los_Angeles"
+  echo ""
 fi
 
 echo ""
 
+sleep 1
 
-# -----------------------
-# Helper — check if Signal is actually linked
-# -----------------------
+#-----------------------
+#Step 2 — Check if Signal account is linked, and if not, initiate linking
+#-----------------------
+
 check_signal_linked() {
-  if [ -f "$DATA_DIR/accounts.json" ]; then
-    if grep -q '"accounts"[[:space:]]*:[[:space:]]*\[[[:space:]]*{' "$DATA_DIR/accounts.json"; then
-      return 0
-    fi
-  fi
-  return 1
+if [ -f "$DATA_DIR/accounts.json" ]; then
+if grep -q '"accounts"[[:space:]]:[[:space:]][[[:space:]]*{' "$DATA_DIR/accounts.json"; then
+return 0
+fi
+fi
+return 1
 }
 
-# -----------------------
-# STEP 1 — Signal account linking
-# -----------------------
+#-----------------------
+#Signal account linking if not linked
+#-----------------------
 
 if ! check_signal_linked; then
-  echo "No Signal account linked."
-  echo ""
+echo -e "\033[33mNo Signal account linked.\033[0m"
+echo ""
+echo "Scan this QR code in Signal:"
+echo "Signal App → Settings → Linked Devices → Link New Device"
+echo ""
 
-  while true; do
-    echo "Scan this QR code in Signal:"
-    echo "Signal App → Settings → Linked Devices → Link New Device"
-    echo ""
+signal-cli link -n "Mesh Bridge" | tee >(xargs -L 1 qrencode -t utf8)
 
-    signal-cli link -n "Mesh Bridge" | tee >(xargs -L 1 qrencode -t utf8)
+echo ""
+echo "Checking if account linked..."
 
-    echo ""
-    echo "Checking if account linked..."
-
-    if check_signal_linked; then
-      echo ""
-      echo "Signal account linked successfully."
-      echo ""
-      break
-    else
-      echo ""
-      echo "QR code expired or not scanned."
-      echo ""
-      echo "Please restart the container to generate a new QR code and try again."
-      echo ""
-      tail -f /dev/null
-    fi
-  done
+if check_signal_linked; then
+echo ""
+echo "Signal account linked successfully."
+echo ""
+else
+echo ""
+echo "QR code expired or not scanned."
+echo "Please restart the container to generate a new QR code and try again."
+echo ""
+tail -f /dev/null
+fi
 fi
 
-# -----------------------
-# STEP 2 — Check for missing SIGNAL_GROUP_ID
-# -----------------------
+sleep 1
+
+#-----------------------
+#STEP 3 — Validate SIGNAL_GROUP_ID and MESH_DEVICE .env variables
+#-----------------------
+
+NEEDS_GROUP=false
+NEEDS_MESH=false
+
+#---- SIGNAL_GROUP_ID ----
+
+GROUP_EMPTY=false
+GROUP_INVALID=false
+
+GROUP_OUTPUT=$(signal-cli listGroups || true)
+VALID_IDS=$(echo "$GROUP_OUTPUT" | grep '^Id:' | awk '{print $2}')
 
 if [ -z "$SIGNAL_GROUP_ID" ]; then
-  echo "SIGNAL_GROUP_ID is empty."
+  GROUP_EMPTY=true
+  NEEDS_GROUP=true
+elif ! echo "$VALID_IDS" | grep -Fxq "$SIGNAL_GROUP_ID"; then
+  GROUP_INVALID=true
+  NEEDS_GROUP=true
+fi
+
+#---- MESH_DEVICE ----
+
+SERIAL_DEVICES=$(ls /dev/ttyACM* /dev/ttyUSB* 2>/dev/null || true)
+
+if [ -z "$MESH_DEVICE" ]; then
+  NEEDS_MESH=true
+
+elif [ ! -e "$MESH_DEVICE" ]; then
+  NEEDS_MESH=true
+  MESH_INVALID_REASON="Path does not exist"
+
+elif [ ! -c "$MESH_DEVICE" ]; then
+  NEEDS_MESH=true
+  MESH_INVALID_REASON="Not a serial character device"
+
+elif ! echo "$SERIAL_DEVICES" | grep -Fxq "$MESH_DEVICE"; then
+  NEEDS_MESH=true
+  MESH_INVALID_REASON="Not one of the detected USB serial devices"
+fi
+
+#-----------------------
+#STEP 4 — If SIGNAL_GROUP_ID or MESH_DEVICE  are missing/incorrect, provide next steps
+#-----------------------
+
+if [ "$NEEDS_GROUP" = true ] || [ "$NEEDS_MESH" = true ]; then
+echo "----------------------------------------"
+echo " Additional setup required"
+echo "----------------------------------------"
+echo ""
+
+if [ "$NEEDS_GROUP" = true ]; then
+  echo -e "\033[33mSIGNAL_GROUP_ID is missing or invalid.\033[0m"
   echo ""
   echo "Available Signal groups:"
   echo ""
-  signal-cli listGroups || true
-  echo ""
-  echo "Copy the desired groupId into SIGNAL_GROUP_ID."
-  echo ""
-  echo "Update variables and rebuild container."
-  echo ""
-  tail -f /dev/null
-fi
-
-# -----------------------
-# STEP 3 — Now validate SIGNAL_GROUP_ID (it exists)
-# -----------------------
-
-GROUP_OUTPUT=$(signal-cli listGroups || true)
-
-VALID_IDS=$(echo "$GROUP_OUTPUT" | grep '^Id:' | awk '{print $2}')
-
-if ! echo "$VALID_IDS" | grep -Fxq "$SIGNAL_GROUP_ID"; then
   echo "$GROUP_OUTPUT"
   echo ""
-  echo "ERROR: SIGNAL_GROUP_ID does NOT exactly match any group above."
-  echo "SIGNAL_GROUP_ID: $SIGNAL_GROUP_ID"
-  echo ""
-  echo "Make sure you copied the FULL ID including first and last characters."
-  echo ""
-  echo "Update variable and rebuild container."
-  echo ""
-  tail -f /dev/null
+
+  if [ "$GROUP_EMPTY" = true ]; then
+    echo "Copy the desired groupID into SIGNAL_GROUP_ID."
+    echo ""
+    echo ""
+  fi
+
+  if [ "$GROUP_INVALID" = true ]; then
+    echo -e "\033[33mSIGNAL_GROUP_ID does NOT exactly match any ID above.\033[0m"
+    echo "Current value: $SIGNAL_GROUP_ID"
+    echo "Make sure you copied the FULL Id including first and last characters."
+    echo ""
+    echo ""
+  fi
 fi
 
-# -----------------------
-# STEP 4 — Check MESH_DEVICE
-# -----------------------
 
-if [ -z "$MESH_DEVICE" ]; then
-  echo "MESH_DEVICE is empty."
+if [ "$NEEDS_MESH" = true ]; then
+  echo -e "\033[33mMESH_DEVICE is missing or invalid.\033[0m"
   echo ""
+
+  # If user provided something, explain why it's wrong
+  if [ -n "$MESH_DEVICE" ]; then
+    echo "Current value: $MESH_DEVICE"
+    echo "Reason: $MESH_INVALID_REASON"
+    echo ""
+  fi
+
   echo "Detected serial devices:"
   echo ""
 
@@ -172,20 +258,30 @@ if [ -z "$MESH_DEVICE" ]; then
   if [ -n "$SERIAL_DEVICES" ]; then
     echo "$SERIAL_DEVICES"
     echo ""
-    echo "Set MESH_DEVICE to correct path (example: /dev/ttyACM0)."
+    echo "Set MESH_DEVICE to one of the paths shown above"
+    echo "Example: /dev/ttyACM0, /dev/ttyUSB1, etc."
   else
     echo "(No serial devices detected)"
   fi
 
   echo ""
-  echo "Update variable and rebuild container."
   echo ""
-  tail -f /dev/null
 fi
 
-# -----------------------
-# STEP 5 — Normal startup
-# -----------------------
+echo -e "\033[33mFix the above variable(s) in your .env file and rebuild the container.\033[0m"
+tail -f /dev/null
+fi
+
+sleep 1
+
+#-----------------------
+#STEP 5 — Bridge startup
+#-----------------------
+
+# Silence signal-cli internal logging
+#export SIGNAL_CLI_OPTS="-Dorg.slf4j.simpleLogger.defaultLogLevel=error"
+
+#  2>/dev/null 2>&1 &
 
 signal-cli daemon \
   --http 0.0.0.0:8080 \

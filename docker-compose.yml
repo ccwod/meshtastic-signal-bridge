@@ -3,20 +3,19 @@ services:
     build: .
     container_name: mesh-signal-bridge
     privileged: true
-
+    
     env_file:
       - .env
 
     environment:
-      - SIGNAL_GROUP_ID
       - MESH_DEVICE
       - MESH_CHANNEL_INDEX
-      - SIGNAL_SHORT_NAMES
+      - SIGNAL_GROUP_ID
       - SIGNAL_POLL_INTERVAL
-      - NODE_DB_WARMUP
-      - TZ
       - LOG_LEVEL
-
+      - SIGNAL_SHORT_NAMES
+      - TZ
+      - NODE_DB_WARMUP
 
     volumes:
       - ./signal-data:/root/.local/share/signal-cli
