@@ -34,6 +34,9 @@ Messages on each side are represented as a **single virtual user** and are prefi
 [A123] Hello from mesh
 [Joe] Hello from Signal
 ```
+
+[See example convos below](https://github.com/ccwod/meshtastic-signal-bridge?tab=readme-ov-file#-relayed-messages-appear-to-come-through-as-single-users)
+
 ---
 
 ## Use Case
