@@ -51,11 +51,11 @@ This project assumes that:
 
 - You have a basic understanding of Meshtastic, node configuration, and node placement 
 - You already have access to a **city-wide or well-covered Meshtastic mesh** (check out [local Meshtastic groups](https://meshtastic.org/docs/community/local-groups))
-- You have Docker running on something like a:
+- You have Docker or Docker Compose running on a Linux host, such as:
   - NAS (e.g. Unraid)
   - Home server
   - Raspberry Pi
-  - Always-on computer
+  - Always-on Linux computer
 - You own a Meshtastic node (e.g. **SenseCap T1000-E**, Heltec V3, T-Beam, RAK WisBlock) that is connected via USB to the host
 - The bridge node is well connected to the wider mesh (Likely requires an accompanying home base node for solid rx/tx. Ask your local mesh community.)
 
@@ -226,13 +226,39 @@ This is because Signal does not notify you for messages sent **to/from yourself*
 
 Messages on each side are represented as a **single virtual user** per platform. Messages are prefixed with a basic sender identity from the other platform.
 
-**Meshtastic**
+#### Meshtastic
 
-A USB connected bridge node is required to facilitate mesh interactions. Any messages received from Signal on the mesh side will appear to originate from the bridge node. Messages relayed from Signal will be prefixed with the `[SIGNAL NAME]` of the sending Signal user, but will appear as being sent from the bridge node. Messages between mesh users in the mesh channel group will appear normally.
+A USB connected bridge node is required to facilitate mesh interactions. Any messages received from Signal on the mesh side will appear to originate from the bridge node. Messages relayed from Signal will be prefixed with the `[SIGNAL NAME]` of the sending Signal user, but will appear as being sent from the bridge node. Messages between mesh users in the mesh channel group will appear normally. This is how a 2-way conversation could look from the mesh side:
+```
+NOD1: Hey guys
 
-**Signal**
+NOD2: Signal, can you hear us?
 
-Similarly, the bridge must be linked to a single Signal account to properly connect to the Signal group. Messages received in the Signal chat from mesh users will appear to originate from a single Signal user, prefixed with the `[NODE]` short name of the sending node. Messages between Signal users in the Signal group chat will appear normally.
+BRDG: [Joe] Coming in good
+
+BRDG: [Tom] Yep
+
+NOD1: Great, thanks
+
+BRDG: [Tom] See you soon
+```
+
+#### Signal
+
+Similarly, the bridge must be linked to a single Signal account to properly connect to the Signal group. Messages received in the Signal chat from mesh users will appear to originate from a single Signal user, prefixed with the `[NODE]` short name of the sending node. Messages between Signal users in the Signal group chat will appear normally. Conversely, this is how the same 2-way conversation would look from the Signal side:
+```
+Joe: [NOD1] Hey guys
+
+Joe: [NOD2] Signal, can you hear us?
+
+Joe: Coming in good
+
+Tom: Yep
+
+Joe: Great, thanks
+
+Tom: See you soon
+```
 
 ---
 
