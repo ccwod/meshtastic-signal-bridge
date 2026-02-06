@@ -47,7 +47,7 @@ This project assumes that:
 
 - You have a basic understanding of Meshtastic, node configuration, and node placement 
 - You already have access to a **city-wide or well-covered Meshtastic mesh** (check out [local Meshtastic groups](https://meshtastic.org/docs/community/local-groups))
-- You have Docker or Docker Compose running on a Linux host, such as:
+- You have Docker Compose (recommended) or Docker running on a Linux host, such as:
   - NAS (e.g. Unraid)
   - Home server
   - Raspberry Pi
@@ -60,23 +60,9 @@ This project assumes that:
 ## Getting Started
 
 #### Prior to building the container for the first time, complete the following:
-1. Configure a secondary Meshtastic channel on the bridge node that will be shared with other nodes (channel, name, and key). Mesh devices that will interact with the bridge must be configured to the same secondary channel slot.
+1. Configure a secondary Meshtastic channel on the bridge node that will be shared with other nodes (same channel, name, and key). Mesh devices that will interact with the bridge must be configured to the same secondary channel slot.
 2. Plug your Meshtastic node into the host using USB and ensure it's powered on.
-3. Create a Signal group and add at least 1 additional user to start. This is the group that will be used to interface with the bridge.
-
-
-#### On first startup the container will:
-
-1. Prompt you to link your Signal account using a QR code
-2. Help you find your Signal group ID
-3. Help you detect your Meshtastic USB device if it is plugged in, powered on, and accessible by Docker via USB
-
-The logs will guide you through the initial setup.
-
-#### After the first run:
-1. Enter the environment variables for **SIGNAL_GROUP_ID** and **MESH_DEVICE** in .env variable section.
-2. Rebuild the container/compose down and up to restart the container with your new variables applied.
-3. If the container is configured correctly, you will see a startup sequence begin in the logs. Once the sequence reads "Bridge active - relaying messages", then the bridge is fully operational.
+3. Create a Signal group in the app. This is the group that will be used to interface with the bridge.
 
 ---
 
@@ -272,7 +258,7 @@ Both could be modified by the operator to inspect message content coming and goi
 
 ### 🔴 Only tested on a limited hardware configuration
 
-- Built and tested using Docker-Compose on **Unraid**
+- Built and tested using Docker Compose on **Unraid**
 - Tested with **SenseCap T1000-E**
 - Designed for Docker first
 - May work on other configurations — try at your own risk
