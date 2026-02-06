@@ -15,6 +15,8 @@ This project exists to:
 - Work with existing community mesh networks and Signal communities
 - Be easy enough to run that any ametuer Meshtastic user can get started quickly
 
+[Use case explained below](https://github.com/ccwod/meshtastic-signal-bridge?tab=readme-ov-file#use-case)
+
 ---
 
 ## How it works
@@ -39,15 +41,6 @@ Messages on each side are represented as a **single virtual user** and are prefi
 
 ---
 
-## Use Case
-
-**meshtastic-signal-bridge** is intended to run as a complement to a primary Signal group in the form of a private, backup communication method between trusted individuals. In practice, this is how it might work:
-1. A group of known people regularly communicate and coordinate via Signal for covert operations.
-2. A subset (or all) of those people have access to portable Meshtastic nodes.
-3. meshtastic-signal-bridge is running continuously, deployed by a trusted member of the group in a city with an established mesh. 
-4. People who may find themselves in scenarios where communication could be disrupted would carry Meshtastic nodes with them, such as at a protest, demonstration, or action. In the unlikely event that communication is disrupted for people carrying Meshtastic nodes, they could use their node as a backup communication method to facilitate communication with the broader Signal group, alerting them of their current status, location, etc.
-5. Alternatively, the bridge may be utilized for privacy-focused users who wish to temporarily communicate with others while using their phone in Airplane Mode (except BLE). This could be due to suspicion of tracking via methods such as [obtaining mobile location data](https://www.eff.org/deeplinks/2022/06/how-federal-government-buys-our-cell-phone-location-data) or using [IMSI catchers](https://www.aclu.org/news/privacy-technology/surreal-stingray-secrecy-uncovering-the-fbis-surveillance-tech-secrecy-agreements) (e.g. Stingray devices) to track users.
-
 ## Important Requirements
 
 This project assumes that:
@@ -59,17 +52,18 @@ This project assumes that:
   - Home server
   - Raspberry Pi
   - Always-on Linux computer
-- You own a Meshtastic node (e.g. **SenseCap T1000-E**, Heltec V3, T-Beam, RAK WisBlock) that is connected via USB to the host
+- You own a Meshtastic node (e.g. **SenseCap T1000-E**, Heltec V3, T-Beam, RAK WisBlock) that is connected via USB to the host - must be capable of serial connection
 - The bridge node is well connected to the wider mesh (Likely requires an accompanying home base node for solid rx/tx. Ask your local mesh community.)
 
 ---
 
 ## Getting Started
 
-#### Prior to starting the container, complete the following:
+#### Prior to building the container for the first time, complete the following:
 1. Configure a secondary Meshtastic channel on the bridge node that will be shared with other nodes (channel, name, and key). Mesh devices that will interact with the bridge must be configured to the same secondary channel slot.
-2. Create a Signal group and add at least 1 additional user to start. This is the group that will be used to interface with the bridge.
-3. Plug your Meshtastic node into the host using USB and ensure it's powered on.
+2. Plug your Meshtastic node into the host using USB and ensure it's powered on.
+3. Create a Signal group and add at least 1 additional user to start. This is the group that will be used to interface with the bridge.
+
 
 #### On first startup the container will:
 
@@ -79,21 +73,118 @@ This project assumes that:
 
 The logs will guide you through the initial setup.
 
-#### After the setup run:
-1. Enter the environment variables for **SIGNAL_GROUP_ID** and **MESH_DEVICE** in .env that are provided in the setup.
+#### After the first run:
+1. Enter the environment variables for **SIGNAL_GROUP_ID** and **MESH_DEVICE** in .env variable section.
 2. Rebuild the container/compose down and up to restart the container with your new variables applied.
 3. If the container is configured correctly, you will see a startup sequence begin in the logs. Once the sequence reads "Bridge active - relaying messages", then the bridge is fully operational.
 
 ---
 
-## Running
+## Installation
 
-```bash
-docker-compose up -d
-docker logs -f meshtastic-signal-bridge
+### Docker Compose (recommended)
+1. Create a project directory: `/meshtastic-signal-bridge`
+2. Create an `.env` file in the root directory with the following contents (it's okay if you don't know `SIGNAL_GROUP_ID` or `MESH_DEVICE` yet, the container will help you find them on first startup):
 ```
+# Required for Signal - GroupIDs listed on startup after Signal auth
+SIGNAL_GROUP_ID=
 
-Follow the logs for setup.
+# Required for Meshtastic - MESH_DEVICE USB path listed on startup
+MESH_DEVICE=
+MESH_CHANNEL_INDEX=1
+
+# Optional tuning
+SIGNAL_SHORT_NAMES=TRUE
+SIGNAL_POLL_INTERVAL=2
+NODE_DB_WARMUP=10
+TZ=America/Chicago
+LOG_LEVEL=INFO
+```
+3. Create a `.docker-compose.yml` file in the root directory with the following contents:
+
+```
+services:
+  meshtastic-signal-bridge:
+    image: ghcr.io/ccwod/meshtastic-signal-bridge:latest
+    container_name: meshtastic-signal-bridge
+    restart: unless-stopped
+    privileged: true
+    env_file:
+      - .env
+    environment:
+      - MESH_DEVICE
+      - MESH_CHANNEL_INDEX
+      - SIGNAL_GROUP_ID
+      - SIGNAL_POLL_INTERVAL
+      - LOG_LEVEL
+      - SIGNAL_SHORT_NAMES
+      - TZ
+      - NODE_DB_WARMUP
+    volumes:
+      - ./signal-data:/root/.local/share/signal-cli
+    devices:
+      - ${MESH_DEVICE}:${MESH_DEVICE}
+```
+4. "Compose up" the container to start it for the first time.
+5. Open the logs to start the onboarding process, explained below under [Post-installation](https://github.com/ccwod/meshtastic-signal-bridge?tab=readme-ov-file#post-installation).
+
+
+---
+
+### Docker
+
+1. Create a project directory: `/meshtastic-signal-bridge`
+2. Create an `.env` file in the root directory with the following contents (it's okay if you don't know `SIGNAL_GROUP_ID` yet, the container will help you find it on first startup):
+```
+# Required for Signal - GroupIDs listed on startup after Signal auth
+SIGNAL_GROUP_ID=
+
+# Required for Meshtastic - MESH_DEVICE USB path listed on startup
+MESH_DEVICE=
+MESH_CHANNEL_INDEX=1
+
+# Optional tuning
+SIGNAL_SHORT_NAMES=TRUE
+SIGNAL_POLL_INTERVAL=2
+NODE_DB_WARMUP=10
+TZ=America/Chicago
+LOG_LEVEL=INFO
+```
+3. Find your USB device path that the mesh node is mapped to, such as `/dev/ttyACM0` or `/dev/ttyUSB1`. Use that in place of `[DEVICE PATH]:[DEVICE PATH]` below.
+4. Run the initial setup:
+```
+docker run --rm -it \
+  --name meshtastic-signal-bridge \
+  --privileged \
+  --env-file .env \
+  -v $(pwd)/signal-data:/root/.local/share/signal-cli \
+  --device [DEVICE PATH]:[DEVICE PATH] \
+  ghcr.io/ccwod/meshtastic-signal-bridge:latest
+```
+5. Open the logs to start the onboarding process, explained below under [Post-installation](https://github.com/ccwod/meshtastic-signal-bridge?tab=readme-ov-file#post-installation).
+
+---
+
+### Unraid
+
+Coming soon.
+
+---
+
+## Post-installation
+
+#### On first startup the container will:
+
+1. Prompt you to link your Signal account using a QR code.
+2. Help you find your Signal group ID.
+3. Help you detect your Meshtastic USB device if it is plugged in, powered on, and accessible by Docker via USB (Docker Compose only).
+
+The logs will guide you through the initial setup.
+
+#### After the first run:
+1. Enter the environment variables for **SIGNAL_GROUP_ID** and **MESH_DEVICE** in .env variable section.
+2. Rebuild the container/compose down and up to restart the container with your new variables applied.
+3. If the container is configured correctly, you will see a startup sequence begin in the logs. Once the sequence reads "Bridge active - relaying messages", then the bridge is fully operational.
 
 ---
 
@@ -141,6 +232,17 @@ Signal users have access to the **!status** command to check the current configu
 | Command | Purpose |
 |---|---|
 | `!status` | Show relay state (on or off) and mode |
+
+---
+
+## Use Case
+
+**meshtastic-signal-bridge** is intended to run as a complement to a primary Signal group in the form of a private, backup communication method between trusted individuals. In practice, this is how it might work:
+1. A group of known people regularly communicate and coordinate via Signal for covert operations.
+2. A subset (or all) of those people have access to portable Meshtastic nodes.
+3. meshtastic-signal-bridge is running continuously, deployed by a trusted member of the group in a city with an established mesh. 
+4. People who may find themselves in scenarios where communication could be disrupted would carry Meshtastic nodes with them, such as at a protest, demonstration, or action. In the unlikely event that communication is disrupted for people carrying Meshtastic nodes, they could use their node as a backup communication method to facilitate communication with the broader Signal group, alerting them of their current status, location, etc.
+5. Alternatively, the bridge may be utilized for privacy-focused users who wish to temporarily communicate with others while using their phone in Airplane Mode (except BLE). This could be due to suspicion of tracking via methods such as [obtaining mobile location data](https://www.eff.org/deeplinks/2022/06/how-federal-government-buys-our-cell-phone-location-data) or using [IMSI catchers](https://www.aclu.org/news/privacy-technology/surreal-stingray-secrecy-uncovering-the-fbis-surveillance-tech-secrecy-agreements) (e.g. Stingray devices) to track users.
 
 ---
 
