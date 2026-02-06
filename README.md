@@ -153,7 +153,9 @@ docker run --rm -it \
 
 ### Unraid
 
-Coming soon.
+Community Apps version coming soon.
+
+In the mean time, you can use the Docker Compose plugin on Unraid and follow the Docker Compose installation instructions above and it will work.
 
 ---
 
