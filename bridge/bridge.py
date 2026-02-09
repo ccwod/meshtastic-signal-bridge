@@ -608,7 +608,7 @@ def handle_signal_results(results, iface):
         if was_truncated:
             send_to_signal(
                 format_bridge_message(
-                    "Message was truncated to fit Meshtastic 200-byte limit."
+                    "Message relayed to mesh, but truncated to fit Meshtastic 200-byte limit."
                 ),
                 log_relay=False
             )
