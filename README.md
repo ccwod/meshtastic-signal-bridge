@@ -243,7 +243,7 @@ Commands can be initiated by all mesh users using the format **![command]**, or 
 | `!relay` | Only used for Modes[2,3]. Explicitly relays messages from Mesh to Signal, otherwise they are not automatically relayed in those modes. |
 
 #### `!on`/`!off` Commands
-The `!on`/`!off` commands act as a global switch to enable or disable all message relay functionality, taking precedence over modes. This can be useful if you have meshtastic-signal-bridge always running in the background set to `!off` because you don't want to pollute mesh channels / Signal groups with message content from the other. When a user is in a situation where the bridge is immediately necessary to use, then they can use `!on` to turn it back on and resume bridge communications.
+The `!on`/`!off` commands act as a global switch to enable or disable all message relay functionality, taking precedence over modes. This can be useful if you have meshtastic-signal-bridge always running in the background set to `!off` because you don't want to pollute mesh channels / Signal groups with message content from the other. When a user is in a situation where the bridge is immediately necessary to use, then they can use `!on` to turn it back on and resume bridge communications. `!on` is default.
 
 #### `!mode` Commands
 There are 3 modes the bridge can be set to which change the functionality of which messages are relayed using the bridge. The modes are designed to accommodate various communication scenarios that mesh users may be in.
