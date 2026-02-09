@@ -52,6 +52,13 @@ COMMAND_PREFIX = "!"
 BRIDGE_PREFIX = "BRIDGE"
 
 # -------------------------
+# Mesh message size limits
+# -------------------------
+
+MAX_MESH_BYTES = 200
+TRUNCATION_SUFFIX = "…"
+
+# -------------------------
 # Runtime relay state
 # -------------------------
 
@@ -113,6 +120,40 @@ def format_signal_sender_name(profile_name, phone=None):
 
 def format_signal_to_mesh(sender_name, message_text):
     return f"[{sender_name}] {message_text}"
+    
+def truncate_signal_to_mesh_message(sender_name, message_text):
+    """
+    Returns (final_message, was_truncated)
+    Ensures the final UTF-8 encoded message fits within MAX_MESH_BYTES.
+    """
+
+    prefix = f"[{sender_name}] "
+    prefix_bytes = len(prefix.encode("utf-8"))
+
+    max_body_bytes = MAX_MESH_BYTES - prefix_bytes
+    if max_body_bytes <= 0:
+        # Extremely long sender name; hard fail-safe
+        return prefix[:MAX_MESH_BYTES], True
+
+    body = message_text
+    body_bytes = body.encode("utf-8")
+
+    if len(body_bytes) <= max_body_bytes:
+        return prefix + body, False
+
+    # Truncate body to fit, leaving room for ellipsis
+    suffix_bytes = TRUNCATION_SUFFIX.encode("utf-8")
+    allowed_bytes = max_body_bytes - len(suffix_bytes)
+
+    truncated_body_bytes = b""
+    for ch in body:
+        ch_bytes = ch.encode("utf-8")
+        if len(truncated_body_bytes) + len(ch_bytes) > allowed_bytes:
+            break
+        truncated_body_bytes += ch_bytes
+
+    truncated_body = truncated_body_bytes.decode("utf-8", errors="ignore")
+    return prefix + truncated_body + TRUNCATION_SUFFIX, True
 
 
 def format_mesh_to_signal(sender_name, message_text):
@@ -240,6 +281,12 @@ def relay_on(args, iface, ctx):
         iface,
         format_bridge_message("Relay enabled. Use !off to disable.")
     )
+    
+    send_to_signal(
+        format_bridge_message(f"Relay ENABLED by {ctx['label']}."),
+        log_relay=False
+    )
+
 
 relay_on.description = "!on — Enable message relaying."
 
@@ -260,6 +307,11 @@ def relay_off(args, iface, ctx):
     send_to_mesh(
         iface,
         format_bridge_message("Relay disabled. Use !on to enable.")
+    )
+    
+    send_to_signal(
+        format_bridge_message(f"Relay DISABLED by {ctx['label']}."),
+        log_relay=False
     )
 
 relay_off.description = "!off — Disable all message relaying."
@@ -284,6 +336,13 @@ def mode1(args, iface, ctx):
         iface,
         format_bridge_message("MODE1 enabled. Relay all messages between Mesh and Signal. Default.")
     )
+    
+    send_to_signal(
+        format_bridge_message(
+            f"MODE1 enabled by {ctx['label']}. Relay all messages between Mesh and Signal."
+        ),
+        log_relay=False
+    )
 
 mode1.description = "!mode1 — Relay all messages between Mesh and Signal. Default."
 
@@ -299,6 +358,13 @@ def mode2(args, iface, ctx):
             "MODE2 enabled. Relay all Signal → Mesh. Mesh → Signal REQUIRES !relay [message]."
         )
     )
+    
+    send_to_signal(
+        format_bridge_message(
+            f"MODE2 enabled by {ctx['label']}. Relay all Signal → Mesh. Mesh → Signal REQUIRES !relay [message]."
+        ),
+        log_relay=False
+    )
 
 mode2.description = "!mode2 — Relay all Signal → Mesh. Mesh → Signal REQUIRES !relay [message]."
 
@@ -313,6 +379,13 @@ def mode3(args, iface, ctx):
         format_bridge_message(
             "MODE3 enabled. Mesh → Signal ONLY via !relay [message]. Signal → Mesh relay DISABLED."
         )
+    )
+    
+    send_to_signal(
+        format_bridge_message(
+            f"MODE3 enabled by {ctx['label']}. Mesh → Signal ONLY via !relay [message]. Signal → Mesh relay DISABLED."
+        ),
+        log_relay=False
     )
 
 mode3.description = "!mode3 — Mesh → Signal ONLY via !relay [message]. Signal → Mesh relay DISABLED."
@@ -513,20 +586,33 @@ def handle_signal_results(results, iface):
         if not RELAY_ENABLED:
             continue
 
-        if RELAY_MODE == 3:
-            continue
-
         if MESH_CHANNEL_INDEX == 0:
             send_to_signal(PRIMARY_BLOCK_MESSAGE, log_relay=False)
             continue
 
         sender = format_signal_sender_name(env.get("sourceName"), env.get("source"))
+
+        # MODE3 only allows Signal → Mesh via explicit !relay
+        if RELAY_MODE == 3:
+            continue
+        
+        final_message, was_truncated = truncate_signal_to_mesh_message(sender, msg)
+        
         send_to_mesh(
             iface,
-            format_signal_to_mesh(sender, msg),
+            final_message,
             sender_label=sender,
             log_relay=True
         )
+        
+        if was_truncated:
+            send_to_signal(
+                format_bridge_message(
+                    "Message was truncated to fit Meshtastic 200-byte limit."
+                ),
+                log_relay=False
+            )
+
 
 def poll_signal_loop(iface):
     while True:

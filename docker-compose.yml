@@ -1,12 +1,11 @@
 services:
-  mesh-signal-bridge:
-    build: .
-    container_name: mesh-signal-bridge
+  meshtastic-signal-bridge:
+    image: ghcr.io/ccwod/meshtastic-signal-bridge:latest
+    container_name: meshtastic-signal-bridge
+    restart: unless-stopped
     privileged: true
-    
     env_file:
       - .env
-
     environment:
       - MESH_DEVICE
       - MESH_CHANNEL_INDEX
@@ -16,10 +15,7 @@ services:
       - SIGNAL_SHORT_NAMES
       - TZ
       - NODE_DB_WARMUP
-
     volumes:
       - ./signal-data:/root/.local/share/signal-cli
-
     devices:
       - ${MESH_DEVICE}:${MESH_DEVICE}
-    restart: unless-stopped

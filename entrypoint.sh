@@ -163,6 +163,36 @@ fi
 sleep 1
 
 #-----------------------
+# Detect revoked / invalid Signal account, or no groups
+#-----------------------
+
+SIGNAL_GROUP_OUTPUT=$(signal-cli listGroups 2>/dev/null || true)
+
+if check_signal_linked && [ -z "$SIGNAL_GROUP_OUTPUT" ]; then
+  echo ""
+  echo "----------------------------------------"
+  echo -e "\033[33m Signal account is no longer valid\033[0m"
+  echo "----------------------------------------"
+  echo ""
+  echo "The Signal account data exists, but appears to be invalid or revoked."
+  echo "This commonly happens if you unlink 'Mesh Bridge' from the Signal app."
+  echo ""
+  echo "To fix this:"
+  echo "  1. Stop the container"
+  echo "  2. Delete the 'signal-data' directory"
+  echo "  3. Start the container again"
+  echo ""
+  echo "A new QR code will be generated for relinking."
+  echo ""
+  echo "Alternatively, if your Signal account is already linked properly,"
+  echo "then it is possible that you are not part of any groups on Signal yet."
+  echo "If that is the case, create a bridge group in Siganl before starting again."
+  echo ""
+  tail -f /dev/null
+fi
+
+
+#-----------------------
 #STEP 3 — Validate SIGNAL_GROUP_ID and MESH_DEVICE .env variables
 #-----------------------
 
