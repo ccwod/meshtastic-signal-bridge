@@ -252,7 +252,7 @@ There are 3 modes the bridge can be set to which change the functionality of whi
 
  - `!mode2`: Useful if mesh users want to monitor the conversation of the broader Signal group, and are also locally coordinating messages on the mesh that they don’t want to bleed into the Signal group. Mesh users use `!relay` to send pertinent messages back to the Signal group. 
 
- - `!mode3`: Useful to completely minimize communications between the mesh channel and Signal group, except when communication is necessary from mesh users' side. Messages are **NOT** relayed from Signal to mesh so as to keep the mesh chatter down, and mesh users are still required to use `!relay` to send a message to Signal.
+ - `!mode3`: Useful to completely minimize communications between the mesh channel and Signal group, except when communication is necessary from mesh users' side. This mode keeps all Signal content off of the mesh. Messages are **NOT** relayed from Signal to mesh so as to keep the mesh chatter down, and mesh users are still required to use `!relay` to send a message to Signal.
 
 ### Signal Command
 
@@ -430,6 +430,9 @@ Have you check the logs? Have you connected your Signal account using the QR cod
 
 ### Are messages end-to-end secure between Meshtastic and Signal?
 No, the platforms have no way to “talk” to each other. The bridge is a trusted gateway. No message content is currently exposed to the bridge, however, the bridge could be modified by somebody to read message content from each platform. [Learn more](#-security-and-trust-model)
+
+### Are messages sent on Meshtastic private and encrypted?
+Meshtastic messages sent on a private channel configured with a key are encrypted. However, all messages contain certain unencrypted headers such as the sender node, time, etc. The broader, public mesh is able to easily detect that [Node ABC] is sending encrypted messages. Moreover, **a compromised node/private key can be used to later decrypt message content**, known as "Harvest now, Decrypt later" attacks. Please keep this in mind when using meshtastic-signal-bridge. [Learn more](https://meshtastic.org/docs/overview/encryption/)
 
 ### The bridge is running and *was* working, but now I’m having issues getting mesh messages sent out to Signal, and they don’t appear in the logs. What happened?
 Have you changed the on/off or mode settings using `!off`? On/off always takes precedence over any mode, it’s a universal on/off switch for the bridge functionality. Use `!status` to determine the current mode and on/off status.
