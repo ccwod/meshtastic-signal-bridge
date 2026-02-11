@@ -428,38 +428,62 @@ Create a **secondary channel** on all nodes:
 ### I'm having trouble starting the bridge. What's wrong?
 Have you check the logs? Have you connected your Signal account using the QR code? Have you provided a valid .env file with the default variables? Have you filled out the env variables, including MESH_DEVICE and SIGNAL_GROUP_ID?
 
+---
+
 ### Are messages end-to-end secure between Meshtastic and Signal?
 No, the platforms have no way to “talk” to each other. The bridge is a trusted gateway. No message content is currently exposed to the bridge, however, the bridge could be modified by somebody to read message content from each platform. [Learn more](#-security-and-trust-model)
+
+---
 
 ### Are messages sent on Meshtastic private and encrypted?
 Meshtastic messages sent on a private channel configured with a key are encrypted. However, all messages contain certain unencrypted headers such as the sender node, time, etc. The broader, public mesh is able to easily detect that [Node ABC] is sending encrypted messages. Moreover, **a compromised node/private key can be used to later decrypt message content**, known as "Harvest now, Decrypt later" attacks. Please keep this in mind when using meshtastic-signal-bridge. [Learn more](https://meshtastic.org/docs/overview/encryption/)
 
+---
+
 ### The bridge is running and *was* working, but now I’m having issues getting mesh messages sent out to Signal, and they don’t appear in the logs. What happened?
 Have you changed the on/off or mode settings using `!off`? On/off always takes precedence over any mode, it’s a universal on/off switch for the bridge functionality. Use `!status` to determine the current mode and on/off status.
+
+---
 
 ### Can I DM an individual person on Signal?
 No, meshtastic-signal-bridge is currently only configured to interface with a singular Signal group. If you want to communicate with one other person, add them to a group with you and use that.
 
+---
+
 ### Are multiple Signal groups supported?
 Not at this time.
+
+---
 
 ### Can I run multiple bridges at once?
 I don't see why not. You'd need a separate container for each, and also a USB-connected mesh node for each bridge container running.
 
+---
+
 ### Is it possible to associate individual Signal accounts with each mesh user so that Mesh messages come back to Signal as the “user” who is sending them?
 No, this would require spinning up a separate signal-cli instance for each mesh user. Not possible at this time.
+
+---
 
 ### Do I need to use the Meshtastic phone app? Can I instead use a node that has built in messaging capabilities?
 While many users use the phone app to communicate by connecting to their node over BLE, it is not required to use the bridge. Theoretically, any node with messaging capabilities should work fine.
 
+---
+
 ### Meshtastic has a 200 byte limit. What happens if a Signal user sends a message with content over 200 bytes?
 If the bridge is enabled (`!on`, and only `!mode1` or `!mode2`) and a Signal user sends a message over 200 bytes, the message is truncated to 200 bytes before it is forwarded to the mesh. In this case, an ellipses '...' is included at the end of the message to the mesh, and also, Signal will be notified that the message was truncated. The 200 byte limit accounts for the [SIGNAL NAME] message prefix that is included on relayed Signal to mesh messages. Standard UTF-8 characters are 1 byte each, however, special characters can be more than 1 byte each, such as an emoji 📱 (4 bytes).
+
+---
 
 ### The bridge is working, but I'm not getting Signal notifications on my phone for messages sent from the mesh. What gives?
 If you created the bridge and linked the bridge Signal account to the same Signal account that you use on your mobile phone, you will run in to this issue. The problem is that Signal does not notify you for messages sent to/from yourself, which is technically what's happening when they come in through the bridge using signal-cli. If you want to properly get notifications on your phone, configure the bridge to run with a secondary Signal account instead. [Learn more](#-link-the-bridge-with-a-secondary-signal-account-if-possible)
 
+---
+
 ### I got the error `Signal RPC error: HTTPConnectionPool(host='localhost', port=8080): Read timed out. (read timeout=60)`. What does it mean?
 I don't know, I think it's some kind of errant Signal timeout that is due to Signal service disruptions and not due to the bridge. Signal messages will likely drop while it happens. Usually only happens every now and then.
+
+---
 
 ### How do I reset my Signal authentication with the bridge?
 Unlink the bridge from "Linked device" in your Signal account, and delete the entire `signal-data` project directory and restart the container. This will restart the authentication process and prompt you with a new linking QR code. 
